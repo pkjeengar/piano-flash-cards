@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Flash Cards SVG Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f1115;
+      --fg: #e8eaed;
+      --muted: #9aa0a6;
+      --panel: #171a21;
+      --btn: #222734;
+      --btn-hover: #2a3142;
+      --primary: #28406f;
+      --accent: #4f8cff;
+      --danger: #ef4444;
+    }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 1fr minmax(320px, 1200px) 1fr;
+      grid-template-rows: auto 1fr auto;
+      min-height: 100dvh;
+      gap: 16px;
+    }
+    header, footer { grid-column: 1 / 4; padding: 8px 12px; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--panel); border-bottom: 1px solid #222631; position: sticky; top: 0; z-index: 5;
+    }
+    .nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .nav button {
+      background: var(--btn); color: var(--fg); border: 1px solid #2b3140;
+      padding: 8px 12px; border-radius: 10px; cursor: pointer; transition: background .15s ease, transform .04s ease; white-space: nowrap;
+    }
+    .nav button:hover { background: var(--btn-hover); }
+    .nav button:active { transform: translateY(1px); }
+    .nav button.primary { background: var(--primary); border-color: #2e4a82; }
+    .nav button.primary:hover { background: #2f4d84; }
+    .nav button.warn { background: #55322f; border-color: #6a3a35; }
+    .nav button.warn:hover { background: #6a3a35; }
+    .title { font-weight: 600; letter-spacing: 0.2px; color: var(--muted); text-align: center; min-width: 200px; }
+
+    main {
+      grid-column: 2;
+      display: grid; grid-template-rows: 1fr auto;
+      background: #0c0f14; border: 1px solid #1f2530; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+
+    .stage {
+      position: relative; display: flex; align-items: center; justify-content: center;
+      min-height: 72dvh; background: radial-gradient(1200px 600px at 50% 0%, rgba(51,74,107,0.12), transparent 60%) , #0c0f14;
+      overflow: hidden;
+    }
+    .svg-shell {
+      position: relative; width: min(1100px, 96vw); height: min(80dvh, 86vh);
+      display: grid; place-items: center; overflow: hidden; padding: 0;
+    }
+
+    .viewer { will-change: transform; transform-origin: center center; touch-action: pan-y; }
+    /* Visual crop frame: 900x600 canvas with small inner padding */
+    .canvas { box-sizing: content-box; width: px; height: 400px;  padding-top: 140px; background: transparent; }
+    object#card {
+      display: block; width: px; height: 400px; max-width: none; 
+      background: #0b0e13; border: 1px solid #1b2230; border-radius: 5px;
+    }
+
+    .bottom-bar {
+      display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 10px;
+      background: linear-gradient(180deg, rgba(23,26,33,.8), rgba(15,17,21,.9)); border-top: 1px solid #1c2230; flex-wrap: wrap;
+      padding-left: 90px;
+    }
+    .left-buttons, .right-buttons { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .btn {
+      background: var(--btn); color: var(--fg); border: 1px solid #2b3140; padding: 10px 14px;
+      border-radius: 10px; cursor: pointer; transition: background .15s ease, transform .04s ease; white-space: nowrap; font-size: 14px;
+    }
+    .btn:hover { background: var(--btn-hover); }
+    .btn:active { transform: translateY(1px); }
+    .btn.accent { background: #173457; border-color: #22436c; }
+    .btn.accent:hover { background: #1c3d66; }
+    .btn.success { background: #133b2a; border-color: #19563c; }
+    .btn.success:hover { background: #175038; }
+    .btn.danger { background: #3f1616; border-color: #612222; }
+    .btn.danger:hover { background: #532020; }
+    .btn.ghost { background: transparent; border-color: #2b3140; }
+    .status { color: var(--muted); font-size: 13px; padding: 4px 8px; border: 1px solid #2b3140; border-radius: 8px; background: #12161d; }
+    #status { display: block;  text-align: center;  margin: 8px 0;}
+    .hidden { display: none !important; }
+
+    /* Pan sliders */
+    .pan-slider { position: absolute; z-index: 4; appearance: none; -webkit-appearance: none; background: transparent; opacity: 0.95; }
+    .pan-x { left: 6%; right: 6%; bottom: 10px; height: 30px; }
+    .pan-y { right: 8px; top: 6%; bottom: 6%; width: 40px; height: auto; writing-mode: vertical-lr; direction: rtl; -webkit-appearance: slider-vertical; }
+    .pan-y[orient="vertical"] { writing-mode: vertical-lr; direction: rtl; }
+    .pan-slider:disabled { opacity: 0.35; }
+    .pan-slider::-webkit-slider-runnable-track { height: 10px; background: #2b3140; border-radius: 6px; }
+    .pan-slider::-moz-range-track { height: 10px; background: #2b3140; border-radius: 6px; }
+    .pan-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; background: var(--accent); border-radius: 50%; border: 2px solid #1e2a44; cursor: pointer; }
+    .pan-slider::-moz-range-thumb { width: 24px; height: 24px; background: var(--accent); border-radius: 50%; border: 2px solid #1e2a44; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="nav">
+        <button id="btn-first" class="primary">« First</button>
+        <button id="btn-prev">‹ Prev</button>
+      </div>
+      <div class="title" id="title">Card p1.svg</div>
+      <div class="nav">
+        <button id="btn-zoom-out">− Zoom</button>
+        <button id="btn-zoom-in">+ Zoom</button>
+        <button id="btn-retry" class="warn">Retry</button>
+        <button id="btn-next">Next ›</button>
+        <button id="btn-last" class="primary">Last »</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="stage">
+        <div class="svg-shell" id="shell">
+          <div id="viewer" class="viewer">
+            <div class="canvas">
+              <object id="card" type="image/svg+xml" data="" aria-label="Flash card"></object>
+            </div>
+          </div>
+          <!-- Pan sliders -->
+          <input id="slider-x" class="pan-slider pan-x" type="range" min="0" max="1000" value="500" aria-label="Horizontal pan" />
+          <input id="slider-y" class="pan-slider pan-y" type="range" min="0" max="1000" value="500" aria-label="Vertical pan" orient="vertical" />
+        </div>
+      </div>
+
+      <div class="bottom-bar">
+        <div class="left-buttons">
+          <button id="btn-start" class="btn accent">Start</button>
+          <button id="btn-menu" class="btn">Menu</button>
+          <button id="btn-flip" class="btn success">Flip</button>
+          <button id="btn-random" class="btn ghost">Random</button>
+          <button id="btn-about" class="btn">About</button>
+          <button id="btn-more" class="btn danger">More</button>
+        </div>
+        <div class="right-buttons">
+          <button id="btn-note-reading" class="btn">Note reading</button>
+          <button id="btn-rhythm" class="btn">Rhythm</button>
+          <button id="btn-symbols" class="btn">Symbols & Terms</button>
+          <button id="btn-five-finger" class="btn">5-finger patterns</button>
+          
+        </div>
+      </div>
+      <span class="status" id="status">Ready</span>
+    </main>
+
+    <footer></footer>
+  </div>
+
+  <script>
+    // ================= Configuration =================
+    const SVG_DIR = './svgs/';
+    const FIRST = 1, LAST = 160;
+    const MENU_PAGE = 2, ABOUT_PAGE = 3, MORE_PAGE = 160;
+    const QUESTION_START = 4, QUESTION_END = 81;
+    const ANSWER_START = 82, ANSWER_END = 159;
+
+    const RANGES = {
+      noteReading: [4, 38],
+      rhythm: [39, 49],
+      symbols: [50, 67],
+      fiveFinger: [68, 81]
+    };
+
+    // ================= Elements and State =================
+    const shellEl = document.getElementById('shell');
+    const viewer = document.getElementById('viewer');
+    let obj = document.getElementById('card'); // recreated on nav/retry
+    const titleEl = document.getElementById('title');
+    const statusEl = document.getElementById('status');
+    const sliderX = document.getElementById('slider-x');
+    const sliderY = document.getElementById('slider-y');
+
+    let current = FIRST;
+    let cache = new Map();
+
+    // ================= Navigation UI =================
+    document.getElementById('btn-first').addEventListener('click', () => go(FIRST));
+    document.getElementById('btn-last').addEventListener('click', () => go(LAST));
+    document.getElementById('btn-prev').addEventListener('click', () => go(Math.max(FIRST, current - 1)));
+    document.getElementById('btn-next').addEventListener('click', () => go(Math.min(LAST, current + 1)));
+
+    // Bottom action buttons
+    const btnStart = document.getElementById('btn-start');
+    const btnMenu  = document.getElementById('btn-menu');
+    const btnFlip  = document.getElementById('btn-flip');
+    const btnRandom= document.getElementById('btn-random');
+    const btnAbout = document.getElementById('btn-about');
+    const btnMore  = document.getElementById('btn-more');
+
+    const btnNote  = document.getElementById('btn-note-reading');
+    const btnRhythm= document.getElementById('btn-rhythm');
+    const btnSymbols=document.getElementById('btn-symbols');
+    const btnFive  = document.getElementById('btn-five-finger');
+
+    btnStart.addEventListener('click', () => go(2));
+    btnMenu.addEventListener('click', () => go(MENU_PAGE));
+    btnFlip.addEventListener('click', () => go(flipOf(current)));
+    btnRandom.addEventListener('click', () => go(randomInt(QUESTION_START, QUESTION_END)));
+    btnAbout.addEventListener('click', () => go(ABOUT_PAGE));
+    btnMore.addEventListener('click', () => go(MORE_PAGE));
+
+    btnNote.addEventListener('click', () => goRandomIn(RANGES.noteReading));
+    btnRhythm.addEventListener('click', () => goRandomIn(RANGES.rhythm));
+    btnSymbols.addEventListener('click', () => goRandomIn(RANGES.symbols));
+    btnFive.addEventListener('click', () => goRandomIn(RANGES.fiveFinger));
+
+    // ================= Loader with cache-bust, retry, and _2 fallback =================
+    let navToken = 0;      // cache-busting param
+    let loadAbort = 0;     // ignore stale loads
+
+    function pathOf(n) { return `${SVG_DIR}p${n}.svg`; }
+    function altPathOf(n) { return `${SVG_DIR}p${n}_2.svg`; }
+    function bust(url) {
+      navToken = (navToken + 1) % 1000000;
+      const sep = url.includes('?') ? '&' : '?';
+      return `${url}${sep}v=${navToken}`;
+    }
+
+    function updateUIFor(n) {
+      titleEl.textContent = `Card p${n}.svg`;
+      [btnStart, btnMenu, btnFlip, btnRandom, btnAbout, btnMore, btnNote, btnRhythm, btnSymbols, btnFive]
+        .forEach(b => b.classList.add('hidden'));
+
+      if (n === 1) {
+        btnStart.classList.remove('hidden');
+      } else if (n === 2) {
+        btnNote.classList.remove('hidden');
+        btnRhythm.classList.remove('hidden');
+        btnSymbols.classList.remove('hidden');
+        btnFive.classList.remove('hidden');
+        btnAbout.classList.remove('hidden');
+        btnMore.classList.remove('hidden');
+      } else if (n === 3) {
+        btnMenu.classList.remove('hidden');
+        btnMore.classList.remove('hidden');
+      } else if (n >= 4 && n <= 159) {
+        btnMenu.classList.remove('hidden');
+        btnFlip.classList.remove('hidden');
+        btnRandom.classList.remove('hidden');
+      } else if (n === 160) {
+        btnMenu.classList.remove('hidden');
+        btnAbout.classList.remove('hidden');
+      }
+    }
+
+    function recreateObject() {
+      const newObj = document.createElement('object');
+      newObj.id = 'card';
+      newObj.type = 'image/svg+xml';
+      newObj.setAttribute('aria-label', 'Flash card');
+      const oldObj = obj;
+      oldObj.parentNode.replaceChild(newObj, oldObj);
+      obj = newObj;
+      obj.addEventListener('load', () => { status(`Loaded p${current}.svg`); resetView(false); });
+      obj.addEventListener('error', () => { status(`Failed to load p${current}.svg`); });
+    }
+
+    async function probe(url) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        return res.ok;
+      } catch { return false; }
+    }
+
+    function attachWithRetry(url, n, abortToken) {
+      obj.setAttribute('data', url);
+      const timer = setTimeout(() => {
+        if (abortToken !== loadAbort) return;
+        status(`Retrying p${n}…`);
+        recreateObject();
+        const isAlt = url.includes('_2.svg');
+        const next = bust(isAlt ? pathOf(n) : altPathOf(n));
+        obj.setAttribute('data', next);
+      }, 7000);
+      function clearTimers() { clearTimeout(timer); }
+      obj.addEventListener('load', clearTimers, { once: true });
+      obj.addEventListener('error', clearTimers, { once: true });
+    }
+
+    async function resolveAndLoad(n, abortToken) {
+      const primary = bust(pathOf(n));
+      const secondary = bust(altPathOf(n));
+      const hasPrimary = await probe(primary);
+      if (abortToken !== loadAbort) return;
+      if (hasPrimary) { attachWithRetry(primary, n, abortToken); return; }
+      const hasSecondary = await probe(secondary);
+      if (abortToken !== loadAbort) return;
+      if (hasSecondary) { attachWithRetry(secondary, n, abortToken); }
+      else { status(`Not found: p${n}.svg or p${n}_2.svg`); }
+    }
+
+    function go(n) {
+      if (n < FIRST) n = FIRST;
+      if (n > LAST) n = LAST;
+      current = n;
+      updateUIFor(n);
+      status(`Loading p${n}.svg…`);
+      const myAbort = ++loadAbort;
+      recreateObject();
+      setTimeout(() => {
+        if (myAbort !== loadAbort) return;
+        resetView(true);
+        resolveAndLoad(n, myAbort);
+      }, 50);
+    }
+
+    function autoRetryLoad() {
+      navToken = (navToken + 1007) % 1000000;
+      cache.clear();
+      status('Retry: clearing and reloading…');
+      recreateObject();
+      setTimeout(() => {
+        resetView(true);
+        resolveAndLoad(current, ++loadAbort);
+      }, 60);
+    }
+    document.getElementById('btn-retry').addEventListener('click', autoRetryLoad);
+
+    // ================= Flip, Random, Status =================
+    function flipOf(n) {
+      if (n >= QUESTION_START && n <= QUESTION_END) return n + 78;
+      if (n >= ANSWER_START && n <= ANSWER_END) return n - 78;
+      return n;
+    }
+    function goRandomIn([a, b]) { go(randomInt(a, b)); }
+    function randomInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+    function status(msg) { statusEl.textContent = msg; }
+
+    // ================= Zoom, Pan, Sliders (no default zoom) =================
+    const BASE_W = 900, BASE_H = 600;
+    let scale = 1.0;      // no default zoom
+    let tx = 0, ty = 0;
+    const SCALE_MIN = 0.6, SCALE_MAX = 3.0;
+
+    function applyTransform() {
+      const a = scale, d = scale, b = 0, c = 0, e = tx, f = ty;
+      viewer.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
+      panToSlider();
+    }
+    function toLocal(x, y) {
+      const rect = viewer.getBoundingClientRect();
+      const lx = (x - rect.left - tx) / scale;
+      const ly = (y - rect.top - ty) / scale;
+      return { lx, ly };
+    }
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function shellRect() { return shellEl.getBoundingClientRect(); }
+
+    function getPanBounds(biasRight = false) {
+      const shell = shellRect();
+      const contentW = (BASE_W + 0) * scale; // include visual padding 22px*2
+      const contentH = (BASE_H + 0) * scale;
+
+      const canPanX = contentW > shell.width + 1;
+      const canPanY = contentH > shell.height + 1;
+
+      const centerTx = (shell.width - contentW) / 2;
+      const centerTy = (shell.height - contentH) / 2;
+
+      let minTx = canPanX ? shell.width - contentW : centerTx;
+      let maxTx = canPanX ? 0 : centerTx;
+
+      const minTy = canPanY ? shell.height - contentH : centerTy;
+      const maxTy = canPanY ? 0 : centerTy;
+
+      if (biasRight) {
+        const bias = shell.width * 1;
+        const biased = centerTx + bias;
+        minTx = Math.min(minTx, biased);
+        maxTx = Math.max(maxTx, biased);
+      }
+
+      return { minTx, maxTx, minTy, maxTy, canPanX, canPanY, shellW: shell.width, shellH: shell.height, contentW, contentH };
+    }
+
+    function clampPan() {
+      const b = getPanBounds();
+      tx = clamp(tx, b.minTx, b.maxTx);
+      ty = clamp(ty, b.minTy, b.maxTy);
+    }
+
+    // Zoom only when Alt is held; Shift+wheel pans horizontally; normal wheel scrolls page
+    function onWheel(e) {
+      const overViewer = e.target.closest('#viewer');
+      if (!overViewer) return; // let page scroll
+      if (e.ctrlKey) return;   // allow browser zoom
+      if (e.shiftKey && !e.altKey) {
+        // horizontal pan
+        e.preventDefault();
+        const dx = e.deltaY || e.deltaX;
+        const b = getPanBounds();
+        tx = clamp(tx - dx, b.minTx, b.maxTx);
+        applyTransform(); updateSliders();
+        return;
+      }
+      if (e.altKey) {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+        zoomAt(e.clientX, e.clientY, factor);
+      }
+    }
+    window.addEventListener('wheel', onWheel, { passive: false });
+
+    function zoomAt(clientX, clientY, factor) {
+      const { lx, ly } = toLocal(clientX, clientY);
+      const newScale = clamp(scale * factor, SCALE_MIN, SCALE_MAX);
+      const rect = viewer.getBoundingClientRect();
+      scale = newScale;
+      tx = clientX - lx * scale - rect.left;
+      ty = clientY - ly * scale - rect.top;
+      clampPan();
+      applyTransform(); updateSliders();
+    }
+    function zoomBy(delta) {
+      const shell = shellRect();
+      const cx = shell.left + shell.width / 2;
+      const cy = shell.top + shell.height / 2;
+      const factor = delta > 0 ? 1.15 : 1 / 1.15;
+      zoomAt(cx, cy, factor);
+    }
+    document.getElementById('btn-zoom-in').addEventListener('click', () => zoomBy(+1));
+    document.getElementById('btn-zoom-out').addEventListener('click', () => zoomBy(-1));
+
+    // Drag pan
+    let isPanning = false, panStartX = 0, panStartY = 0, panStartTx = 0, panStartTy = 0;
+    viewer.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isPanning = true; panStartX = e.clientX; panStartY = e.clientY; panStartTx = tx; panStartTy = ty; viewer.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!isPanning) return;
+      const dx = e.clientX - panStartX, dy = e.clientY - panStartY;
+      const b = getPanBounds();
+      tx = clamp(panStartTx + dx, b.minTx, b.maxTx);
+      ty = clamp(panStartTy + dy, b.minTy, b.maxTy);
+      applyTransform();
+    });
+    window.addEventListener('mouseup', () => { isPanning = false; viewer.style.cursor = 'default'; });
+
+    // Sliders
+    function sliderToPan() {
+      const b = getPanBounds();
+      const nx = (+sliderX.value) / 1000, ny = (+sliderY.value) / 1000;
+      tx = b.minTx + nx * (b.maxTx - b.minTx);
+      ty = b.minTy + ny * (b.maxTy - b.minTy);
+      applyTransform();
+    }
+    function panToSlider() {
+      const b = getPanBounds();
+      const nx = (tx - b.minTx) / (b.maxTx - b.minTx || 1);
+      const ny = (ty - b.minTy) / (b.maxTy - b.minTy || 1);
+      sliderX.value = String(Math.round(nx * 1000));
+      sliderY.value = String(Math.round(ny * 1000));
+    }
+    function updateSliders() {
+      const b = getPanBounds();
+      sliderX.disabled = !b.canPanX;
+      sliderY.disabled = !b.canPanY;
+      panToSlider();
+    }
+    sliderX.addEventListener('input', sliderToPan);
+    sliderY.addEventListener('input', sliderToPan);
+
+    // Reset view centered, no zoom; optional right bias on first paint
+    function resetView(biasRight = false) {
+  const b = getPanBounds(false);
+
+  // Center using the logical base size
+  tx = Math.round((b.shellW - b.contentW - 2) / 2);
+  ty = Math.round((b.shellH - b.contentH) / 2);
+
+  // Optional right bias only if requested
+  if (biasRight && b.canPanX) {
+    const nudge = b.shellW * 0.25;
+    tx = Math.max(b.minTx, Math.min(b.maxTx, tx + nudge));
+  }
+
+  applyTransform();
+  updateSliders();
+}
+
+    window.addEventListener('resize', () => { clampPan(); applyTransform(); updateSliders(); });
+
+    // Initial object listeners
+    obj.addEventListener('load', () => { status(`Loaded p${current}.svg`); resetView(false); });
+    obj.addEventListener('error', () => { status(`Failed to load p${current}.svg`); });
+
+    // Start
+    applyTransform();
+    //resetView(true);
+    go(1);
+    setTimeout(() => {
+  zoomBy(+1);   // +1 = zoom in, -1 = zoom out
+}, 200);
+  </script>
+</body>
+</html>
