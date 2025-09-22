@@ -147,22 +147,40 @@ object#card {
 
 
   .bottom-bar {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: linear-gradient(180deg, rgba(23,26,33,.8), rgba(15,17,21,.9));
-    border-top: 1px solid #1c2230;
-  }
+    position: absolute;
+  display: flex;
+  justify-content: center; /* left group sticks left, right group sticks right */
+  align-items: center;
+  padding: 15px 20px;             /* add left/right padding */
+  
+  flex-wrap: wrap;                /* allow wrapping on small screens */
+  width: 27%;
+  height: 30%;
+  margin-left: 28%;
+  margin-top: 2.89%;
+  
+  padding-top: 34%;
+}
 
-  .left-buttons, .right-buttons {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
+.about-more{
+  display: flex;
+  gap: 90px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.left-buttons{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.right-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 
   .btn {
     background: var(--btn);
@@ -179,11 +197,40 @@ object#card {
   .btn:active { transform: translateY(1px); }
   .btn.accent { background: #173457; border-color: #22436c; }
   .btn.accent:hover { background: #1c3d66; }
-  .btn.success { background: #133b2a; border-color: #19563c; }
+  .btn.success { background: #133b2a; border-color: #19563c;margin-left: 25px;margin-right: 25px; }
   .btn.success:hover { background: #175038; }
   .btn.danger { background: #3f1616; border-color: #612222; }
   .btn.danger:hover { background: #532020; }
   .btn.ghost { background: transparent; border-color: #2b3140; }
+
+.note_reading {
+  position: absolute;
+  top: 12%;     /* adjust to where you want it */
+  left: 120px;    /* adjust to where you want it */
+  padding: 8px 12px;
+}
+
+.rhythm {
+  position: absolute;
+  top: 26%;
+  left: 120px;   /* different left offset */
+  padding: 8px 12px;
+}
+
+.symbols {
+  position: absolute;
+  top: 40%;
+  left: 120px;
+  padding: 8px 12px;
+}
+
+.five-finger {
+  position: absolute;
+  top: 55%;
+  left: 120px;
+  padding: 8px 12px;
+}
+
 
   .status {
     color: var(--muted);
@@ -304,15 +351,15 @@ object#card {
           <button id="btn-start" class="btn accent">Start</button>
           <button id="btn-menu" class="btn">Menu</button>
           <button id="btn-flip" class="btn success">Flip</button>
-          <button id="btn-random" class="btn ghost">Random</button>
-          <button id="btn-about" class="btn">About</button>
-          <button id="btn-more" class="btn danger">More</button>
+          <button id="btn-random" class="btn">Random</button>
+          <button id="btn-about" class="btn about-more">About</button>
+          <button id="btn-more" class="btn danger about-more">More</button>
         </div>
         <div class="right-buttons">
-          <button id="btn-note-reading" class="btn">Note reading</button>
-          <button id="btn-rhythm" class="btn">Rhythm</button>
-          <button id="btn-symbols" class="btn">Symbols & Terms</button>
-          <button id="btn-five-finger" class="btn">5-finger patterns</button>
+          <button id="btn-note-reading" class="btn note_reading">Note reading</button>
+          <button id="btn-rhythm" class="btn rhythm">Rhythm</button>
+          <button id="btn-symbols" class="btn symbols">Symbols & Terms</button>
+          <button id="btn-five-finger" class="btn five-finger">5-finger patterns</button>
           
         </div>
       </div>
@@ -658,5 +705,3 @@ object#card {
   </script>
 </body>
 </html>
-
-
